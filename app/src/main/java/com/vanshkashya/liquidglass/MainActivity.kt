@@ -1,20 +1,24 @@
 package com.vanshkashya.liquidglass
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
+import android.os.Bundle
+import android.os.Process
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
-import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +27,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
@@ -60,19 +66,31 @@ data class AppInfo(
 fun LiquidGlassHome() {
 
     val context = LocalContext.current
+
     val launcherApps =
-        context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+        context.getSystemService(
+            Context.LAUNCHER_APPS_SERVICE
+        ) as LauncherApps
 
     val backdrop = rememberLayerBackdrop()
 
-    var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-    var drawerOpen by remember { mutableStateOf(false) }
-    var search by remember { mutableStateOf("") }
+    var apps by remember {
+        mutableStateOf<List<AppInfo>>(emptyList())
+    }
+
+    var drawerOpen by remember {
+        mutableStateOf(false)
+    }
+
+    var search by remember {
+        mutableStateOf("")
+    }
 
     var time by remember {
         mutableStateOf(currentTime())
     }
 
+    // Clock
     LaunchedEffect(Unit) {
         while (true) {
             time = currentTime()
@@ -80,25 +98,62 @@ fun LiquidGlassHome() {
         }
     }
 
+    // Load installed apps
     LaunchedEffect(Unit) {
         apps = loadApps(launcherApps)
     }
 
     val filteredApps = remember(apps, search) {
+
         if (search.isBlank()) {
             apps
         } else {
             apps.filter {
-                it.label.contains(search, ignoreCase = true)
+                it.label.contains(
+                    search,
+                    ignoreCase = true
+                )
             }
         }
     }
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(drawerOpen) {
+
+                var totalDrag = 0f
+
+                detectVerticalDragGestures(
+
+                    onVerticalDrag = { _, dragAmount ->
+
+                        totalDrag += dragAmount
+                    },
+
+                    onDragEnd = {
+
+                        // Swipe UP
+                        if (totalDrag < -120f) {
+                            drawerOpen = true
+                        }
+
+                        // Swipe DOWN
+                        if (totalDrag > 120f) {
+                            drawerOpen = false
+                            search = ""
+                        }
+
+                        totalDrag = 0f
+                    }
+                )
+            }
     ) {
 
+        // =====================================================
         // BACKGROUND
+        // =====================================================
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -114,31 +169,48 @@ fun LiquidGlassHome() {
                 )
         ) {
 
+            // Blue floating light
+
             Box(
                 modifier = Modifier
-                    .offset(x = (-60).dp, y = 120.dp)
+                    .offset(
+                        x = (-60).dp,
+                        y = 120.dp
+                    )
                     .size(220.dp)
                     .background(
-                        Color(0xFF8CC8FF).copy(alpha = 0.55f),
+                        Color(0xFF8CC8FF)
+                            .copy(alpha = 0.55f),
                         CircleShape
                     )
             )
 
+            // Purple floating light
+
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset(x = 70.dp, y = (-130).dp)
+                    .offset(
+                        x = 70.dp,
+                        y = (-130).dp
+                    )
                     .size(260.dp)
                     .background(
-                        Color(0xFFBDA7FF).copy(alpha = 0.45f),
+                        Color(0xFFBDA7FF)
+                            .copy(alpha = 0.45f),
                         CircleShape
                     )
             )
         }
 
+        // =====================================================
+        // HOME SCREEN
+        // =====================================================
+
         if (!drawerOpen) {
 
-            // CLOCK
+            // Clock
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,9 +234,11 @@ fun LiquidGlassHome() {
                 )
             }
 
-            // SEARCH
+            // Search
+
             GlassSearch(
                 backdrop = backdrop,
+
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 205.dp)
@@ -175,34 +249,45 @@ fun LiquidGlassHome() {
                     }
             )
 
-            // DOCK
+            // Dock
+
             GlassDock(
                 backdrop = backdrop,
+
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 28.dp)
                     .fillMaxWidth(0.90f)
                     .height(82.dp),
+
                 onDrawerClick = {
                     drawerOpen = true
                 }
             )
+        }
 
-        } else {
+        // =====================================================
+        // APP DRAWER
+        // =====================================================
 
-            // APP DRAWER
+        if (drawerOpen) {
+
             AppDrawer(
                 backdrop = backdrop,
                 apps = filteredApps,
                 search = search,
+
                 onSearchChange = {
                     search = it
                 },
+
                 onClose = {
                     drawerOpen = false
                     search = ""
                 },
+
                 onLaunch = { app ->
+
                     launchApp(
                         launcherApps,
                         app
@@ -213,87 +298,138 @@ fun LiquidGlassHome() {
     }
 }
 
+// =============================================================
+// GLASS SEARCH
+// =============================================================
+
 @Composable
 fun GlassSearch(
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
 
     Box(
         modifier = modifier.drawBackdrop(
+
             backdrop = backdrop,
-            shape = { RoundedCornerShape(28.dp) },
+
+            shape = {
+                RoundedCornerShape(28.dp)
+            },
+
             effects = {
+
                 vibrancy()
-                blur(8.dp.toPx())
+
+                blur(
+                    8.dp.toPx()
+                )
+
                 lens(
                     refractionHeight = 18.dp.toPx(),
                     refractionAmount = 24.dp.toPx(),
                     chromaticAberration = true
                 )
             },
+
             onDrawSurface = {
+
                 drawRect(
-                    Color.White.copy(alpha = 0.20f)
+                    Color.White.copy(
+                        alpha = 0.20f
+                    )
                 )
             }
         ),
+
         contentAlignment = Alignment.CenterStart
     ) {
 
         Text(
             text = "⌕   Search",
-            modifier = Modifier.padding(horizontal = 20.dp),
+            modifier = Modifier.padding(
+                horizontal = 20.dp
+            ),
             fontSize = 16.sp,
             color = Color(0xFF3D4855)
         )
     }
 }
 
+// =============================================================
+// GLASS DOCK
+// =============================================================
+
 @Composable
 fun GlassDock(
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     modifier: Modifier = Modifier,
     onDrawerClick: () -> Unit
 ) {
 
     Row(
         modifier = modifier.drawBackdrop(
+
             backdrop = backdrop,
-            shape = { RoundedCornerShape(41.dp) },
+
+            shape = {
+                RoundedCornerShape(41.dp)
+            },
+
             effects = {
+
                 vibrancy()
-                blur(10.dp.toPx())
+
+                blur(
+                    10.dp.toPx()
+                )
+
                 lens(
                     refractionHeight = 22.dp.toPx(),
                     refractionAmount = 30.dp.toPx(),
                     chromaticAberration = true
                 )
             },
+
             onDrawSurface = {
+
                 drawRect(
-                    Color.White.copy(alpha = 0.18f)
+                    Color.White.copy(
+                        alpha = 0.18f
+                    )
                 )
             }
         ),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+
+        horizontalArrangement =
+            Arrangement.SpaceEvenly,
+
+        verticalAlignment =
+            Alignment.CenterVertically
     ) {
 
         GlassDockIcon("☎")
+
         GlassDockIcon("◉")
+
+        // App drawer button
 
         Box(
             modifier = Modifier
                 .size(54.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(
+                    RoundedCornerShape(18.dp)
+                )
                 .clickable {
                     onDrawerClick()
                 }
                 .background(
-                    Color.White.copy(alpha = 0.22f),
+                    Color.White.copy(
+                        alpha = 0.22f
+                    ),
                     RoundedCornerShape(18.dp)
                 ),
+
             contentAlignment = Alignment.Center
         ) {
 
@@ -308,16 +444,25 @@ fun GlassDock(
     }
 }
 
+// =============================================================
+// DOCK ICON
+// =============================================================
+
 @Composable
-fun GlassDockIcon(symbol: String) {
+fun GlassDockIcon(
+    symbol: String
+) {
 
     Box(
         modifier = Modifier
             .size(54.dp)
             .background(
-                Color.White.copy(alpha = 0.22f),
+                Color.White.copy(
+                    alpha = 0.22f
+                ),
                 RoundedCornerShape(18.dp)
             ),
+
         contentAlignment = Alignment.Center
     ) {
 
@@ -329,9 +474,13 @@ fun GlassDockIcon(symbol: String) {
     }
 }
 
+// =============================================================
+// APP DRAWER
+// =============================================================
+
 @Composable
 fun AppDrawer(
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     apps: List<AppInfo>,
     search: String,
     onSearchChange: (String) -> Unit,
@@ -350,9 +499,12 @@ fun AppDrawer(
             )
     ) {
 
+        // Header
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
 
             Text(
@@ -362,16 +514,21 @@ fun AppDrawer(
                 color = Color(0xFF18202A)
             )
 
+            // Close button
+
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        Color.White.copy(alpha = 0.35f),
+                        Color.White.copy(
+                            alpha = 0.35f
+                        ),
                         CircleShape
                     )
                     .clickable {
                         onClose()
                     },
+
                 contentAlignment = Alignment.Center
             ) {
 
@@ -383,7 +540,11 @@ fun AppDrawer(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(
+            modifier = Modifier.height(18.dp)
+        )
+
+        // Search
 
         GlassDrawerSearch(
             backdrop = backdrop,
@@ -391,22 +552,36 @@ fun AppDrawer(
             onValueChange = onSearchChange
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(
+            modifier = Modifier.height(18.dp)
+        )
+
+        // App grid
 
         LazyVerticalGrid(
+
             columns = GridCells.Fixed(4),
+
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                bottom = 30.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+
+            contentPadding =
+                PaddingValues(
+                    bottom = 30.dp
+                ),
+
+            horizontalArrangement =
+                Arrangement.spacedBy(10.dp),
+
+            verticalArrangement =
+                Arrangement.spacedBy(18.dp)
         ) {
 
             items(
                 items = apps,
+
                 key = {
-                    it.packageName + it.activityName
+                    it.packageName +
+                            it.activityName
                 }
             ) { app ->
 
@@ -421,9 +596,13 @@ fun AppDrawer(
     }
 }
 
+// =============================================================
+// DRAWER SEARCH
+// =============================================================
+
 @Composable
 fun GlassDrawerSearch(
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     value: String,
     onValueChange: (String) -> Unit
 ) {
@@ -433,38 +612,58 @@ fun GlassDrawerSearch(
             .fillMaxWidth()
             .height(52.dp)
             .drawBackdrop(
+
                 backdrop = backdrop,
-                shape = { RoundedCornerShape(26.dp) },
+
+                shape = {
+                    RoundedCornerShape(26.dp)
+                },
+
                 effects = {
+
                     vibrancy()
-                    blur(8.dp.toPx())
+
+                    blur(
+                        8.dp.toPx()
+                    )
+
                     lens(
                         refractionHeight = 16.dp.toPx(),
                         refractionAmount = 20.dp.toPx(),
                         chromaticAberration = true
                     )
                 },
+
                 onDrawSurface = {
+
                     drawRect(
-                        Color.White.copy(alpha = 0.20f)
+                        Color.White.copy(
+                            alpha = 0.20f
+                        )
                     )
                 }
             )
     ) {
 
-        androidx.compose.foundation.text.BasicTextField(
+        BasicTextField(
+
             value = value,
+
             onValueChange = onValueChange,
+
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     horizontal = 18.dp,
                     vertical = 15.dp
                 ),
+
             singleLine = true,
+
             decorationBox = { innerTextField ->
 
                 if (value.isEmpty()) {
+
                     Text(
                         text = "⌕   Search apps",
                         color = Color(0xFF596574),
@@ -478,6 +677,10 @@ fun GlassDrawerSearch(
     }
 }
 
+// =============================================================
+// APP GRID ITEM
+// =============================================================
+
 @Composable
 fun AppGridItem(
     app: AppInfo,
@@ -490,30 +693,41 @@ fun AppGridItem(
             .clickable {
                 onClick()
             },
-        horizontalAlignment = Alignment.CenterHorizontally
+
+        horizontalAlignment =
+            Alignment.CenterHorizontally
     ) {
 
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    Color.White.copy(alpha = 0.24f),
+                    Color.White.copy(
+                        alpha = 0.24f
+                    ),
                     RoundedCornerShape(20.dp)
                 ),
+
             contentAlignment = Alignment.Center
         ) {
 
-            androidx.compose.foundation.Image(
+            Image(
+
                 bitmap = app.icon
                     .toBitmap(
                         width = 128,
                         height = 128
                     )
                     .asImageBitmap(),
-                contentDescription = app.label,
+
+                contentDescription =
+                    app.label,
+
                 modifier = Modifier
                     .size(52.dp)
-                    .clip(RoundedCornerShape(15.dp))
+                    .clip(
+                        RoundedCornerShape(15.dp)
+                    )
             )
         }
 
@@ -530,48 +744,78 @@ fun AppGridItem(
     }
 }
 
+// =============================================================
+// LOAD INSTALLED APPS
+// =============================================================
+
 fun loadApps(
     launcherApps: LauncherApps
 ): List<AppInfo> {
 
     return launcherApps
-        .getActivityList(null, android.os.Process.myUserHandle())
+        .getActivityList(
+            null,
+            Process.myUserHandle()
+        )
         .map { info: LauncherActivityInfo ->
 
             AppInfo(
-                label = info.label?.toString() ?: info.applicationInfo.packageName,
-                packageName = info.applicationInfo.packageName,
-                activityName = info.name,
-                icon = info.getIcon(0)
+
+                label =
+                    info.label?.toString()
+                        ?: info.applicationInfo.packageName,
+
+                packageName =
+                    info.applicationInfo.packageName,
+
+                activityName =
+                    info.name,
+
+                icon =
+                    info.getIcon(0)
             )
         }
+
         .distinctBy {
-            it.packageName + it.activityName
+            it.packageName +
+                    it.activityName
         }
+
         .sortedBy {
-            it.label.lowercase(Locale.getDefault())
+            it.label.lowercase(
+                Locale.getDefault()
+            )
         }
 }
+
+// =============================================================
+// LAUNCH APP
+// =============================================================
 
 fun launchApp(
     launcherApps: LauncherApps,
     app: AppInfo
 ) {
 
-    val component = android.content.ComponentName(
+    val component = ComponentName(
         app.packageName,
         app.activityName
     )
 
     launcherApps.startMainActivity(
         component,
-        android.os.Process.myUserHandle(),
+        Process.myUserHandle(),
         null,
         null
     )
 }
 
+// =============================================================
+// CURRENT TIME
+// =============================================================
+
 fun currentTime(): String {
+
     return SimpleDateFormat(
         "HH:mm",
         Locale.getDefault()

@@ -1,19 +1,24 @@
 package com.vanshkashya.liquidglass
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -62,25 +66,6 @@ fun LiquidGlassLauncher() {
         mutableStateOf(loadInstalledApps(context))
     }
 
-    // Refresh apps whenever launcher resumes
-    DisposableEffect(Unit) {
-        val lifecycleObserver =
-            androidx.lifecycle.LifecycleEventObserver { _, event ->
-
-                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                    apps = loadInstalledApps(context)
-                }
-            }
-
-        val lifecycle = (context as ComponentActivity).lifecycle
-        lifecycle.addObserver(lifecycleObserver)
-
-        onDispose {
-            lifecycle.removeObserver(lifecycleObserver)
-        }
-    }
-
-    // Clock
     LaunchedEffect(Unit) {
         while (true) {
             time = currentTime()
@@ -93,7 +78,10 @@ fun LiquidGlassLauncher() {
             apps
         } else {
             apps.filter {
-                it.name.contains(searchText, ignoreCase = true)
+                it.name.contains(
+                    searchText,
+                    ignoreCase = true
+                )
             }
         }
     }
@@ -115,11 +103,11 @@ fun LiquidGlassLauncher() {
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
 
-                        if (dragAmount < -15) {
+                        if (!drawerOpen && dragAmount < -15f) {
                             drawerOpen = true
                         }
 
-                        if (dragAmount > 15) {
+                        if (drawerOpen && dragAmount > 15f) {
                             drawerOpen = false
                             searchText = ""
                         }
@@ -128,10 +116,13 @@ fun LiquidGlassLauncher() {
             }
     ) {
 
-        // Background blobs
+        // Background bubbles
         Box(
             modifier = Modifier
-                .offset(x = (-80).dp, y = 170.dp)
+                .offset(
+                    x = (-80).dp,
+                    y = 170.dp
+                )
                 .size(360.dp)
                 .clip(RoundedCornerShape(180.dp))
                 .background(Color(0x5590C8FF))
@@ -139,22 +130,16 @@ fun LiquidGlassLauncher() {
 
         Box(
             modifier = Modifier
-                .offset(x = 300.dp, y = 700.dp)
+                .offset(
+                    x = 300.dp,
+                    y = 700.dp
+                )
                 .size(350.dp)
                 .clip(RoundedCornerShape(175.dp))
                 .background(Color(0x55B59AFF))
         )
 
-        if (!drawerOpen) {
-
-            HomeScreen(
-                time = time,
-                onOpenDrawer = {
-                    drawerOpen = true
-                }
-            )
-
-        } else {
+        if (drawerOpen) {
 
             AppDrawer(
                 apps = filteredApps,
@@ -165,6 +150,15 @@ fun LiquidGlassLauncher() {
                 onClose = {
                     drawerOpen = false
                     searchText = ""
+                }
+            )
+
+        } else {
+
+            HomeScreen(
+                time = time,
+                onOpenDrawer = {
+                    drawerOpen = true
                 }
             )
         }
@@ -187,7 +181,6 @@ fun HomeScreen(
         Text(
             text = time,
             fontSize = 64.sp,
-            fontWeight = FontWeight.Light,
             color = Color(0xFF101820)
         )
 
@@ -200,53 +193,55 @@ fun HomeScreen(
             color = Color(0xFF536273)
         )
 
-        Spacer(modifier = Modifier.height(55.dp))
+        Spacer(
+            modifier = Modifier.height(55.dp)
+        )
 
-        // Search / app drawer button
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
                 .height(58.dp)
                 .clip(RoundedCornerShape(30.dp))
-                .background(Color.White.copy(alpha = 0.45f))
-                .pointerInput(Unit) {
-
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, amount ->
-
-                            if (amount < -10) {
-                                onOpenDrawer()
-                            }
-                        }
-                    )
+                .background(
+                    Color.White.copy(alpha = 0.45f)
+                )
+                .clickable {
+                    onOpenDrawer()
                 },
             contentAlignment = Alignment.CenterStart
         ) {
 
             Text(
                 text = "⌕   Search apps",
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.padding(
+                    horizontal = 24.dp
+                ),
                 fontSize = 17.sp,
                 color = Color(0xFF526171)
             )
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(
+            modifier = Modifier.weight(1f)
+        )
 
-        // Swipe hint
         Text(
             text = "↑  Swipe up for apps",
             fontSize = 13.sp,
             color = Color(0xFF667585)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
 
         GlassDock(
             onOpenDrawer = onOpenDrawer
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(
+            modifier = Modifier.height(28.dp)
+        )
     }
 }
 
@@ -260,7 +255,9 @@ fun GlassDock(
             .fillMaxWidth(0.88f)
             .height(82.dp)
             .clip(RoundedCornerShape(42.dp))
-            .background(Color.White.copy(alpha = 0.50f)),
+            .background(
+                Color.White.copy(alpha = 0.50f)
+            ),
         contentAlignment = Alignment.Center
     ) {
 
@@ -270,25 +267,10 @@ fun GlassDock(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            DockButton(
-                symbol = "⌕",
-                onClick = onOpenDrawer
-            )
-
-            DockButton(
-                symbol = "◉",
-                onClick = onOpenDrawer
-            )
-
-            DockButton(
-                symbol = "◎",
-                onClick = onOpenDrawer
-            )
-
-            DockButton(
-                symbol = "▦",
-                onClick = onOpenDrawer
-            )
+            DockButton("⌕", onOpenDrawer)
+            DockButton("◉", onOpenDrawer)
+            DockButton("◎", onOpenDrawer)
+            DockButton("▦", onOpenDrawer)
         }
     }
 }
@@ -299,15 +281,16 @@ fun DockButton(
     onClick: () -> Unit
 ) {
 
-    androidx.compose.foundation.clickable(
-        onClick = onClick
-    )
-
     Box(
         modifier = Modifier
             .size(54.dp)
             .clip(RoundedCornerShape(19.dp))
-            .background(Color.White.copy(alpha = 0.48f)),
+            .background(
+                Color.White.copy(alpha = 0.48f)
+            )
+            .clickable {
+                onClick()
+            },
         contentAlignment = Alignment.Center
     ) {
 
@@ -327,6 +310,11 @@ fun AppDrawer(
     onClose: () -> Unit
 ) {
 
+    // IMPORTANT:
+    // Context yahan Composable scope mein liya gaya hai.
+    // Click lambda ke andar LocalContext.current nahi hai.
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -343,22 +331,24 @@ fun AppDrawer(
             Text(
                 text = "Apps",
                 fontSize = 32.sp,
-                fontWeight = FontWeight.Medium,
                 color = Color(0xFF111A22)
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(
+                modifier = Modifier.weight(1f)
+            )
 
             Text(
-                text = "${apps.size}",
+                text = apps.size.toString(),
                 fontSize = 15.sp,
                 color = Color(0xFF617080)
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(
+            modifier = Modifier.height(18.dp)
+        )
 
-        // Search
         OutlinedTextField(
             value = searchText,
             onValueChange = onSearchChange,
@@ -377,30 +367,41 @@ fun AppDrawer(
             },
             shape = RoundedCornerShape(30.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White.copy(alpha = 0.48f),
-                unfocusedContainerColor = Color.White.copy(alpha = 0.40f),
-                focusedBorderColor = Color.White.copy(alpha = 0.8f),
-                unfocusedBorderColor = Color.White.copy(alpha = 0.55f)
+                focusedContainerColor =
+                    Color.White.copy(alpha = 0.48f),
+                unfocusedContainerColor =
+                    Color.White.copy(alpha = 0.40f),
+                focusedBorderColor =
+                    Color.White.copy(alpha = 0.8f),
+                unfocusedBorderColor =
+                    Color.White.copy(alpha = 0.55f)
             )
         )
 
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(
+            modifier = Modifier.height(10.dp)
+        )
 
         Text(
             text = "Swipe down to close",
             modifier = Modifier
-                .align(Alignment.CenterHorizontally),
+                .align(Alignment.CenterHorizontally)
+                .clickable {
+                    onClose()
+                },
             fontSize = 12.sp,
             color = Color(0xFF687687)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 10.dp),
             contentPadding = PaddingValues(
                 top = 8.dp,
                 bottom = 40.dp
@@ -418,30 +419,20 @@ fun AppDrawer(
                     app = app,
                     onClick = {
 
-                        try {
-
-                            val launchIntent =
-                                android.content.pm.PackageManager
-                                    .getLaunchIntentForPackage(
-                                        app.packageName
-                                    )
-
-                            if (launchIntent != null) {
-
-                                launchIntent.addFlags(
-                                    Intent.FLAG_ACTIVITY_NEW_TASK
+                        val launchIntent =
+                            context.packageManager
+                                .getLaunchIntentForPackage(
+                                    app.packageName
                                 )
 
-                                val context =
-                                    androidx.compose.ui.platform
-                                        .LocalContext.current
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
 
-                                context.startActivity(
-                                    launchIntent
-                                )
-                            }
-
-                        } catch (_: Exception) {
+                            context.startActivity(
+                                launchIntent
+                            )
                         }
                     }
                 )
@@ -456,6 +447,16 @@ fun AppIcon(
     onClick: () -> Unit
 ) {
 
+    val bitmap = remember(app.packageName) {
+
+        app.icon
+            .toBitmap(
+                width = 120,
+                height = 120
+            )
+            .asImageBitmap()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -465,15 +466,6 @@ fun AppIcon(
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        val bitmap = remember(app.packageName) {
-            app.icon
-                .toBitmap(
-                    width = 120,
-                    height = 120
-                )
-                .asImageBitmap()
-        }
 
         Box(
             modifier = Modifier
@@ -485,14 +477,16 @@ fun AppIcon(
             contentAlignment = Alignment.Center
         ) {
 
-            androidx.compose.foundation.Image(
+            Image(
                 bitmap = bitmap,
                 contentDescription = app.name,
                 modifier = Modifier.size(48.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(
+            modifier = Modifier.height(6.dp)
+        )
 
         Text(
             text = app.name,
@@ -504,7 +498,7 @@ fun AppIcon(
 }
 
 fun loadInstalledApps(
-    context: android.content.Context
+    context: Context
 ): List<InstalledApp> {
 
     val packageManager = context.packageManager
@@ -513,7 +507,9 @@ fun loadInstalledApps(
         Intent.ACTION_MAIN,
         null
     ).apply {
-        addCategory(Intent.CATEGORY_LAUNCHER)
+        addCategory(
+            Intent.CATEGORY_LAUNCHER
+        )
     }
 
     val resolveInfos =
@@ -547,7 +543,7 @@ fun loadInstalledApps(
             it.packageName
         }
         .sortedBy {
-            it.name.lowercase()
+            it.name.lowercase(Locale.getDefault())
         }
 }
 

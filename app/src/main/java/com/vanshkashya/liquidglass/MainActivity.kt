@@ -713,5 +713,96 @@ private fun AppDrawer(
 
                     items(
                         items = filteredApps,
-                        key = {
-        
+                        key = { it.packageName }
+                    ) { app ->
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    launchApp(context, app)
+                                },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+
+                            val bitmap = app.icon.toBitmap()
+
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = app.name,
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .graphicsLayer { alpha = 0.98f }
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = app.name,
+                                fontSize = 12.sp,
+                                color = Color(0xFF36424A)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Helper functions used by the activity ---
+
+private fun loadInstalledApps(context: Context): List<InstalledApp> {
+    val pm = context.packageManager
+    val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+        addCategory(Intent.CATEGORY_LAUNCHER)
+    }
+
+    val resolveInfos = pm.queryIntentActivities(mainIntent, PackageManager.GET_META_DATA)
+
+    return resolveInfos.map { info ->
+        val activity = info.activityInfo
+        InstalledApp(
+            name = info.loadLabel(pm).toString(),
+            packageName = activity.packageName,
+            activityName = activity.name,
+            icon = info.loadIcon(pm)
+        )
+    }.sortedBy { it.name }
+}
+
+private fun launchApp(context: Context, app: InstalledApp) {
+    try {
+        val intent = Intent().apply {
+            setClassName(app.packageName, app.activityName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // Fallback: try to open package main activity
+        val pm = context.packageManager
+        val i = pm.getLaunchIntentForPackage(app.packageName)
+        i?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (i != null) {
+            context.startActivity(i)
+        }
+    }
+}
+
+private fun openSystemApp(context: Context, pkg: String) {
+    val pm = context.packageManager
+    val intent = pm.getLaunchIntentForPackage(pkg)
+    if (intent != null) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+}
+
+fun currentTime(): String {
+    return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+}
+
+fun currentDate(): String {
+    return SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date())
+}

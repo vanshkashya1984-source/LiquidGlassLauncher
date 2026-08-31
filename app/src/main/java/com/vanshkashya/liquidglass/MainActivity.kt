@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,12 +31,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,17 +66,49 @@ fun LiquidGlassLauncher() {
     val context = LocalContext.current
     val backdrop = rememberLayerBackdrop()
 
-    var drawerOpen by remember { mutableStateOf(false) }
-    var time by remember { mutableStateOf(currentTime()) }
+    var drawerOpen by remember {
+        mutableStateOf(false)
+    }
 
-    val apps = remember {
-        loadInstalledApps(context)
+    var time by remember {
+        mutableStateOf(currentTime())
+    }
+
+    var apps by remember {
+        mutableStateOf(loadInstalledApps(context))
     }
 
     LaunchedEffect(Unit) {
         while (true) {
             time = currentTime()
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
+        }
+    }
+
+    DisposableEffect(Unit) {
+
+        val observer =
+            androidx.lifecycle.LifecycleEventObserver { _, event ->
+
+                if (
+                    event ==
+                    androidx.lifecycle.Lifecycle.Event.ON_RESUME
+                ) {
+                    apps = loadInstalledApps(context)
+                }
+            }
+
+        context
+            .let {
+                (it as ComponentActivity)
+                    .lifecycle
+                    .addObserver(observer)
+            }
+
+        onDispose {
+            (context as ComponentActivity)
+                .lifecycle
+                .removeObserver(observer)
         }
     }
 
@@ -83,7 +119,7 @@ fun LiquidGlassLauncher() {
                 Brush.verticalGradient(
                     listOf(
                         Color(0xFFE7F1FF),
-                        Color(0xFFF9FBFF),
+                        Color(0xFFF8FBFF),
                         Color(0xFFDCE7F5)
                     )
                 )
@@ -92,9 +128,6 @@ fun LiquidGlassLauncher() {
 
         /*
          * BACKDROP SOURCE
-         *
-         * Kyant0's library samples this layer
-         * to create the glass refraction.
          */
         Box(
             modifier = Modifier
@@ -105,23 +138,31 @@ fun LiquidGlassLauncher() {
             Box(
                 modifier = Modifier
                     .offset(
-                        x = (-90).dp,
-                        y = 160.dp
+                        x = (-80).dp,
+                        y = 150.dp
                     )
-                    .size(350.dp)
-                    .clip(RoundedCornerShape(180.dp))
-                    .background(Color(0x5593C9FF))
+                    .size(360.dp)
+                    .clip(
+                        RoundedCornerShape(180.dp)
+                    )
+                    .background(
+                        Color(0x5595CFFF)
+                    )
             )
 
             Box(
                 modifier = Modifier
                     .offset(
                         x = 270.dp,
-                        y = 620.dp
+                        y = 650.dp
                     )
-                    .size(390.dp)
-                    .clip(RoundedCornerShape(200.dp))
-                    .background(Color(0x55B7A0FF))
+                    .size(360.dp)
+                    .clip(
+                        RoundedCornerShape(180.dp)
+                    )
+                    .background(
+                        Color(0x55B5A0FF)
+                    )
             )
         }
 
@@ -147,7 +188,7 @@ fun LiquidGlassLauncher() {
         }
 
         /*
-         * Swipe gesture on the whole launcher.
+         * GLOBAL SWIPE
          */
         Box(
             modifier = Modifier
@@ -157,11 +198,17 @@ fun LiquidGlassLauncher() {
                     detectVerticalDragGestures(
                         onVerticalDrag = { _, amount ->
 
-                            if (!drawerOpen && amount < -15f) {
+                            if (
+                                !drawerOpen &&
+                                amount < -20f
+                            ) {
                                 drawerOpen = true
                             }
 
-                            if (drawerOpen && amount > 15f) {
+                            if (
+                                drawerOpen &&
+                                amount > 20f
+                            ) {
                                 drawerOpen = false
                             }
                         }
@@ -174,7 +221,7 @@ fun LiquidGlassLauncher() {
 @Composable
 fun HomeScreen(
     time: String,
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     onOpenDrawer: () -> Unit
 ) {
 
@@ -182,7 +229,8 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 70.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment =
+            Alignment.CenterHorizontally
     ) {
 
         Text(
@@ -197,7 +245,7 @@ fun HomeScreen(
                 Locale.getDefault()
             ).format(Date()),
             fontSize = 17.sp,
-            color = Color(0xFF526273)
+            color = Color(0xFF536273)
         )
 
         Spacer(
@@ -205,7 +253,7 @@ fun HomeScreen(
         )
 
         /*
-         * REAL KYANT0 BACKDROP GLASS SEARCH
+         * LIQUID GLASS SEARCH
          */
         Box(
             modifier = Modifier
@@ -213,27 +261,21 @@ fun HomeScreen(
                 .height(58.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = {
-                        RoundedRect(29.dp.toPx())
-                    },
+                    shape = RoundedCornerShape(29.dp),
                     effects = {
                         vibrancy()
-                        blur(4.dp.toPx())
+                        blur(8.dp)
                         lens(
-                            16.dp.toPx(),
-                            24.dp.toPx()
-                        )
-                    },
-                    onDrawSurface = {
-                        drawRect(
-                            Color.White.copy(alpha = 0.18f)
+                            18.dp,
+                            28.dp
                         )
                     }
                 )
                 .clickable {
                     onOpenDrawer()
                 },
-            contentAlignment = Alignment.CenterStart
+            contentAlignment =
+                Alignment.CenterStart
         ) {
 
             Text(
@@ -269,34 +311,36 @@ fun HomeScreen(
                 .height(78.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = {
-                        RoundedRect(39.dp.toPx())
-                    },
+                    shape = RoundedCornerShape(39.dp),
                     effects = {
                         vibrancy()
-                        blur(8.dp.toPx())
+                        blur(10.dp)
                         lens(
-                            20.dp.toPx(),
-                            30.dp.toPx()
-                        )
-                    },
-                    onDrawSurface = {
-                        drawRect(
-                            Color.White.copy(alpha = 0.18f)
+                            20.dp,
+                            32.dp
                         )
                     }
                 )
                 .clickable {
                     onOpenDrawer()
                 },
-            contentAlignment = Alignment.Center
+            contentAlignment =
+                Alignment.Center
         ) {
 
-            Text(
-                text = "⌕     ◉     ◎     ▦",
-                fontSize = 25.sp,
-                color = Color(0xFF17232E)
-            )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement =
+                    Arrangement.SpaceEvenly,
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+
+                GlassDockIcon("⌕")
+                GlassDockIcon("◉")
+                GlassDockIcon("◎")
+                GlassDockIcon("▦")
+            }
         }
 
         Spacer(
@@ -306,9 +350,21 @@ fun HomeScreen(
 }
 
 @Composable
+fun GlassDockIcon(
+    symbol: String
+) {
+
+    Text(
+        text = symbol,
+        fontSize = 25.sp,
+        color = Color(0xFF17232E)
+    )
+}
+
+@Composable
 fun AppDrawer(
     apps: List<InstalledApp>,
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     onClose: () -> Unit
 ) {
 
@@ -317,14 +373,15 @@ fun AppDrawer(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 45.dp)
+            .padding(top = 42.dp)
     ) {
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 22.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
 
             Text(
@@ -338,18 +395,18 @@ fun AppDrawer(
             )
 
             Text(
-                text = apps.size.toString(),
+                text = "${apps.size} apps",
                 fontSize = 14.sp,
                 color = Color(0xFF637181)
             )
         }
 
         Spacer(
-            modifier = Modifier.height(18.dp)
+            modifier = Modifier.height(16.dp)
         )
 
         /*
-         * GLASS DRAWER CONTAINER
+         * GLASS DRAWER
          */
         Box(
             modifier = Modifier
@@ -357,20 +414,13 @@ fun AppDrawer(
                 .padding(horizontal = 12.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = {
-                        RoundedRect(32.dp.toPx())
-                    },
+                    shape = RoundedCornerShape(32.dp),
                     effects = {
                         vibrancy()
-                        blur(8.dp.toPx())
+                        blur(12.dp)
                         lens(
-                            22.dp.toPx(),
-                            34.dp.toPx()
-                        )
-                    },
-                    onDrawSurface = {
-                        drawRect(
-                            Color.White.copy(alpha = 0.16f)
+                            22.dp,
+                            36.dp
                         )
                     }
                 )
@@ -378,13 +428,12 @@ fun AppDrawer(
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-                contentPadding = PaddingValues(
-                    top = 20.dp,
-                    bottom = 40.dp
-                )
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        top = 25.dp,
+                        bottom = 45.dp
+                    )
             ) {
 
                 items(
@@ -399,35 +448,30 @@ fun AppDrawer(
                         backdrop = backdrop,
                         onClick = {
 
-                            val launchIntent =
+                            val intent =
                                 context.packageManager
                                     .getLaunchIntentForPackage(
                                         app.packageName
                                     )
 
-                            if (launchIntent != null) {
-                                context.startActivity(
-                                    launchIntent
-                                )
+                            if (intent != null) {
+                                context.startActivity(intent)
                             }
                         }
                     )
                 }
             }
 
-            /*
-             * Close area
-             */
             Text(
                 text = "↓",
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 6.dp)
+                    .padding(top = 5.dp)
                     .clickable {
                         onClose()
                     },
-                fontSize = 18.sp,
-                color = Color(0xFF5B6875)
+                fontSize = 20.sp,
+                color = Color(0xFF526171)
             )
         }
     }
@@ -436,11 +480,13 @@ fun AppDrawer(
 @Composable
 fun AppIcon(
     app: InstalledApp,
-    backdrop: com.kyant.backdrop.Backdrop,
+    backdrop: Backdrop,
     onClick: () -> Unit
 ) {
 
-    val bitmap = remember(app.packageName) {
+    val bitmap = remember(
+        app.packageName
+    ) {
 
         app.icon
             .toBitmap(
@@ -460,36 +506,27 @@ fun AppIcon(
             .clickable {
                 onClick()
             },
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment =
+            Alignment.CenterHorizontally
     ) {
 
-        /*
-         * Each icon gets a small real liquid-glass
-         * surface instead of a normal alpha box.
-         */
         Box(
             modifier = Modifier
                 .size(66.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = {
-                        RoundedRect(20.dp.toPx())
-                    },
+                    shape = RoundedCornerShape(20.dp),
                     effects = {
                         vibrancy()
-                        blur(3.dp.toPx())
+                        blur(5.dp)
                         lens(
-                            10.dp.toPx(),
-                            18.dp.toPx()
-                        )
-                    },
-                    onDrawSurface = {
-                        drawRect(
-                            Color.White.copy(alpha = 0.14f)
+                            10.dp,
+                            18.dp
                         )
                     }
                 ),
-            contentAlignment = Alignment.Center
+            contentAlignment =
+                Alignment.Center
         ) {
 
             Image(
@@ -516,7 +553,7 @@ fun loadInstalledApps(
     context: Context
 ): List<InstalledApp> {
 
-    val packageManager = context.packageManager
+    val pm = context.packageManager
 
     val intent = Intent(
         Intent.ACTION_MAIN,
@@ -527,7 +564,7 @@ fun loadInstalledApps(
         )
     }
 
-    return packageManager
+    return pm
         .queryIntentActivities(
             intent,
             PackageManager.MATCH_ALL
@@ -538,12 +575,12 @@ fun loadInstalledApps(
                 info.activityInfo.packageName
 
             val name =
-                info.loadLabel(packageManager)
+                info.loadLabel(pm)
                     ?.toString()
                     ?: return@mapNotNull null
 
             val icon =
-                info.loadIcon(packageManager)
+                info.loadIcon(pm)
                     ?: return@mapNotNull null
 
             InstalledApp(
@@ -556,7 +593,9 @@ fun loadInstalledApps(
             it.packageName
         }
         .sortedBy {
-            it.name.lowercase(Locale.getDefault())
+            it.name.lowercase(
+                Locale.getDefault()
+            )
         }
 }
 

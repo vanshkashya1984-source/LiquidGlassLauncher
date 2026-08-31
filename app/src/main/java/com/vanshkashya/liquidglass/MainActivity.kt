@@ -5,16 +5,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,6 +41,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LiquidGlassHome() {
 
+    val backdrop = rememberLayerBackdrop()
+
     var time by remember {
         mutableStateOf(currentTime())
     }
@@ -46,31 +55,59 @@ fun LiquidGlassHome() {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFFE7EEF7),
-                        Color(0xFFF9FBFD),
-                        Color(0xFFD9E3EE)
+        modifier = Modifier.fillMaxSize()
+    ) {
+
+        // Background source for the glass
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(backdrop)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFFB9D8FF),
+                            Color(0xFFEAF3FF),
+                            Color(0xFFC8D9EA)
+                        )
                     )
                 )
+        ) {
+
+            // Decorative background shapes
+            Box(
+                modifier = Modifier
+                    .offset(x = (-60).dp, y = 120.dp)
+                    .size(220.dp)
+                    .background(
+                        Color(0xFF8CC8FF).copy(alpha = 0.55f),
+                        CircleShape
+                    )
             )
-    ) {
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 70.dp, y = (-130).dp)
+                    .size(260.dp)
+                    .background(
+                        Color(0xFFBDA7FF).copy(alpha = 0.45f),
+                        CircleShape
+                    )
+            )
+        }
 
         // Clock
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 80.dp),
+                .padding(top = 75.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
             Text(
                 text = time,
-                fontSize = 58.sp,
-                fontWeight = FontWeight.Light,
+                fontSize = 60.sp,
                 color = Color(0xFF18202A)
             )
 
@@ -80,68 +117,105 @@ fun LiquidGlassHome() {
                     Locale.getDefault()
                 ).format(Date()),
                 fontSize = 16.sp,
-                color = Color(0xFF596574)
+                color = Color(0xFF4F5C6B)
             )
         }
 
-        // Glass Search
+        // Liquid Glass Search
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 210.dp)
+                .padding(top = 205.dp)
                 .fillMaxWidth(0.88f)
-                .height(54.dp)
-                .background(
-                    Color.White.copy(alpha = 0.45f),
-                    RoundedCornerShape(28.dp)
+                .height(56.dp)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedCornerShape(28.dp) },
+                    effects = {
+                        vibrancy()
+                        blur(8.dp.toPx())
+                        lens(
+                            refractionHeight = 18.dp.toPx(),
+                            refractionAmount = 24.dp.toPx(),
+                            chromaticAberration = true
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.20f)
+                        )
+                    }
                 ),
             contentAlignment = Alignment.CenterStart
         ) {
+
             Text(
                 text = "⌕   Search",
                 modifier = Modifier.padding(horizontal = 20.dp),
                 fontSize = 16.sp,
-                color = Color(0xFF596574)
+                color = Color(0xFF3D4855)
             )
         }
 
-        // Glass Dock
-        Box(
+        // Liquid Glass Dock
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 25.dp)
-                .fillMaxWidth(0.88f)
-                .height(78.dp)
-                .background(
-                    Color.White.copy(alpha = 0.48f),
-                    RoundedCornerShape(39.dp)
-                )
+                .padding(bottom = 28.dp)
+                .fillMaxWidth(0.90f)
+                .height(82.dp)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedCornerShape(41.dp) },
+                    effects = {
+                        vibrancy()
+                        blur(10.dp.toPx())
+                        lens(
+                            refractionHeight = 22.dp.toPx(),
+                            refractionAmount = 30.dp.toPx(),
+                            chromaticAberration = true
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.18f)
+                        )
+                    }
+                ),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                GlassIcon("☎")
-                GlassIcon("◉")
-                GlassIcon("◎")
-                GlassIcon("▣")
-            }
+            LiquidGlassIcon("☎")
+            LiquidGlassIcon("◉")
+            LiquidGlassIcon("◎")
+            LiquidGlassIcon("▣")
         }
     }
 }
 
 @Composable
-fun GlassIcon(symbol: String) {
+fun LiquidGlassIcon(symbol: String) {
 
     Box(
         modifier = Modifier
-            .size(52.dp)
-            .background(
-                Color.White.copy(alpha = 0.55f),
-                RoundedCornerShape(18.dp)
+            .size(54.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .drawBackdrop(
+                backdrop = rememberLayerBackdrop(),
+                shape = { RoundedCornerShape(18.dp) },
+                effects = {
+                    lens(
+                        refractionHeight = 10.dp.toPx(),
+                        refractionAmount = 14.dp.toPx(),
+                        chromaticAberration = true
+                    )
+                },
+                onDrawSurface = {
+                    drawRect(
+                        Color.White.copy(alpha = 0.22f)
+                    )
+                }
             ),
         contentAlignment = Alignment.Center
     ) {

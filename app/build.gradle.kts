@@ -6,7 +6,7 @@ plugins {
     
 android {    
     namespace = "com.vanshkashya.liquidglass"    
-    compileSdk = 35    
+    compileSdk = 37  
     
     defaultConfig {    
         applicationId = "com.vanshkashya.liquidglass"    

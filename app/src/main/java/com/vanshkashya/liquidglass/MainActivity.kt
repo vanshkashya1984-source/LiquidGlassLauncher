@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +29,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
-import kotlinx.coroutines.delay
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.shapes.RoundedRect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,32 +61,19 @@ class MainActivity : ComponentActivity() {
 fun LiquidGlassLauncher() {
 
     val context = LocalContext.current
+    val backdrop = rememberLayerBackdrop()
 
     var drawerOpen by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
     var time by remember { mutableStateOf(currentTime()) }
 
-    var apps by remember {
-        mutableStateOf(loadInstalledApps(context))
+    val apps = remember {
+        loadInstalledApps(context)
     }
 
     LaunchedEffect(Unit) {
         while (true) {
             time = currentTime()
-            delay(1000)
-        }
-    }
-
-    val filteredApps = remember(apps, searchText) {
-        if (searchText.isBlank()) {
-            apps
-        } else {
-            apps.filter {
-                it.name.contains(
-                    searchText,
-                    ignoreCase = true
-                )
-            }
+            kotlinx.coroutines.delay(1000)
         }
     }
 
@@ -92,64 +83,56 @@ fun LiquidGlassLauncher() {
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFE5F0FF),
-                        Color(0xFFF7FAFF),
-                        Color(0xFFDCE8F5)
+                        Color(0xFFE7F1FF),
+                        Color(0xFFF9FBFF),
+                        Color(0xFFDCE7F5)
                     )
                 )
             )
-            .pointerInput(drawerOpen) {
-
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, dragAmount ->
-
-                        if (!drawerOpen && dragAmount < -15f) {
-                            drawerOpen = true
-                        }
-
-                        if (drawerOpen && dragAmount > 15f) {
-                            drawerOpen = false
-                            searchText = ""
-                        }
-                    }
-                )
-            }
     ) {
 
-        // Background bubbles
+        /*
+         * BACKDROP SOURCE
+         *
+         * Kyant0's library samples this layer
+         * to create the glass refraction.
+         */
         Box(
             modifier = Modifier
-                .offset(
-                    x = (-80).dp,
-                    y = 170.dp
-                )
-                .size(360.dp)
-                .clip(RoundedCornerShape(180.dp))
-                .background(Color(0x5590C8FF))
-        )
+                .fillMaxSize()
+                .layerBackdrop(backdrop)
+        ) {
 
-        Box(
-            modifier = Modifier
-                .offset(
-                    x = 300.dp,
-                    y = 700.dp
-                )
-                .size(350.dp)
-                .clip(RoundedCornerShape(175.dp))
-                .background(Color(0x55B59AFF))
-        )
+            Box(
+                modifier = Modifier
+                    .offset(
+                        x = (-90).dp,
+                        y = 160.dp
+                    )
+                    .size(350.dp)
+                    .clip(RoundedCornerShape(180.dp))
+                    .background(Color(0x5593C9FF))
+            )
+
+            Box(
+                modifier = Modifier
+                    .offset(
+                        x = 270.dp,
+                        y = 620.dp
+                    )
+                    .size(390.dp)
+                    .clip(RoundedCornerShape(200.dp))
+                    .background(Color(0x55B7A0FF))
+            )
+        }
 
         if (drawerOpen) {
 
             AppDrawer(
-                apps = filteredApps,
-                searchText = searchText,
-                onSearchChange = {
-                    searchText = it
-                },
+                apps = apps,
+                backdrop = backdrop,
                 onClose = {
                     drawerOpen = false
-                    searchText = ""
                 }
             )
 
@@ -157,17 +140,42 @@ fun LiquidGlassLauncher() {
 
             HomeScreen(
                 time = time,
+                backdrop = backdrop,
                 onOpenDrawer = {
                     drawerOpen = true
                 }
             )
         }
+
+        /*
+         * Swipe gesture on the whole launcher.
+         */
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(drawerOpen) {
+
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { _, amount ->
+
+                            if (!drawerOpen && amount < -15f) {
+                                drawerOpen = true
+                            }
+
+                            if (drawerOpen && amount > 15f) {
+                                drawerOpen = false
+                            }
+                        }
+                    )
+                }
+        )
     }
 }
 
 @Composable
 fun HomeScreen(
     time: String,
+    backdrop: com.kyant.backdrop.Backdrop,
     onOpenDrawer: () -> Unit
 ) {
 
@@ -190,20 +198,38 @@ fun HomeScreen(
                 Locale.getDefault()
             ).format(Date()),
             fontSize = 17.sp,
-            color = Color(0xFF536273)
+            color = Color(0xFF526273)
         )
 
         Spacer(
-            modifier = Modifier.height(55.dp)
+            modifier = Modifier.height(50.dp)
         )
 
+        /*
+         * REAL KYANT0 BACKDROP GLASS SEARCH
+         */
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
                 .height(58.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(
-                    Color.White.copy(alpha = 0.45f)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = {
+                        RoundedRect(29.dp.toPx())
+                    },
+                    effects = {
+                        vibrancy()
+                        blur(4.dp.toPx())
+                        lens(
+                            16.dp.toPx(),
+                            24.dp.toPx()
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.18f)
+                        )
+                    }
                 )
                 .clickable {
                     onOpenDrawer()
@@ -217,7 +243,7 @@ fun HomeScreen(
                     horizontal = 24.dp
                 ),
                 fontSize = 17.sp,
-                color = Color(0xFF526171)
+                color = Color(0xFF526273)
             )
         }
 
@@ -235,9 +261,44 @@ fun HomeScreen(
             modifier = Modifier.height(12.dp)
         )
 
-        GlassDock(
-            onOpenDrawer = onOpenDrawer
-        )
+        /*
+         * LIQUID GLASS DOCK
+         */
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.88f)
+                .height(78.dp)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = {
+                        RoundedRect(39.dp.toPx())
+                    },
+                    effects = {
+                        vibrancy()
+                        blur(8.dp.toPx())
+                        lens(
+                            20.dp.toPx(),
+                            30.dp.toPx()
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.18f)
+                        )
+                    }
+                )
+                .clickable {
+                    onOpenDrawer()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+
+            Text(
+                text = "⌕     ◉     ◎     ▦",
+                fontSize = 25.sp,
+                color = Color(0xFF17232E)
+            )
+        }
 
         Spacer(
             modifier = Modifier.height(28.dp)
@@ -246,91 +307,30 @@ fun HomeScreen(
 }
 
 @Composable
-fun GlassDock(
-    onOpenDrawer: () -> Unit
-) {
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth(0.88f)
-            .height(82.dp)
-            .clip(RoundedCornerShape(42.dp))
-            .background(
-                Color.White.copy(alpha = 0.50f)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            DockButton("⌕", onOpenDrawer)
-            DockButton("◉", onOpenDrawer)
-            DockButton("◎", onOpenDrawer)
-            DockButton("▦", onOpenDrawer)
-        }
-    }
-}
-
-@Composable
-fun DockButton(
-    symbol: String,
-    onClick: () -> Unit
-) {
-
-    Box(
-        modifier = Modifier
-            .size(54.dp)
-            .clip(RoundedCornerShape(19.dp))
-            .background(
-                Color.White.copy(alpha = 0.48f)
-            )
-            .clickable {
-                onClick()
-            },
-        contentAlignment = Alignment.Center
-    ) {
-
-        Text(
-            text = symbol,
-            fontSize = 24.sp,
-            color = Color(0xFF18232D)
-        )
-    }
-}
-
-@Composable
 fun AppDrawer(
     apps: List<InstalledApp>,
-    searchText: String,
-    onSearchChange: (String) -> Unit,
+    backdrop: com.kyant.backdrop.Backdrop,
     onClose: () -> Unit
 ) {
 
-    // IMPORTANT:
-    // Context yahan Composable scope mein liya gaya hai.
-    // Click lambda ke andar LocalContext.current nahi hai.
     val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 55.dp)
+            .padding(top = 45.dp)
     ) {
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 22.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
             Text(
                 text = "Apps",
-                fontSize = 32.sp,
+                fontSize = 34.sp,
                 color = Color(0xFF111A22)
             )
 
@@ -340,8 +340,8 @@ fun AppDrawer(
 
             Text(
                 text = apps.size.toString(),
-                fontSize = 15.sp,
-                color = Color(0xFF617080)
+                fontSize = 14.sp,
+                color = Color(0xFF637181)
             )
         }
 
@@ -349,94 +349,87 @@ fun AppDrawer(
             modifier = Modifier.height(18.dp)
         )
 
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = onSearchChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            singleLine = true,
-            placeholder = {
-                Text("Search installed apps")
-            },
-            leadingIcon = {
-                Text(
-                    text = "⌕",
-                    fontSize = 22.sp
-                )
-            },
-            shape = RoundedCornerShape(30.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor =
-                    Color.White.copy(alpha = 0.48f),
-                unfocusedContainerColor =
-                    Color.White.copy(alpha = 0.40f),
-                focusedBorderColor =
-                    Color.White.copy(alpha = 0.8f),
-                unfocusedBorderColor =
-                    Color.White.copy(alpha = 0.55f)
-            )
-        )
-
-        Spacer(
-            modifier = Modifier.height(10.dp)
-        )
-
-        Text(
-            text = "Swipe down to close",
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .clickable {
-                    onClose()
-                },
-            fontSize = 12.sp,
-            color = Color(0xFF687687)
-        )
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
+        /*
+         * GLASS DRAWER CONTAINER
+         */
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp),
-            contentPadding = PaddingValues(
-                top = 8.dp,
-                bottom = 40.dp
-            )
-        ) {
-
-            items(
-                items = apps,
-                key = {
-                    it.packageName
-                }
-            ) { app ->
-
-                AppIcon(
-                    app = app,
-                    onClick = {
-
-                        val launchIntent =
-                            context.packageManager
-                                .getLaunchIntentForPackage(
-                                    app.packageName
-                                )
-
-                        if (launchIntent != null) {
-                            launchIntent.addFlags(
-                                Intent.FLAG_ACTIVITY_NEW_TASK
-                            )
-
-                            context.startActivity(
-                                launchIntent
-                            )
-                        }
+                .padding(horizontal = 12.dp)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = {
+                        RoundedRect(32.dp.toPx())
+                    },
+                    effects = {
+                        vibrancy()
+                        blur(8.dp.toPx())
+                        lens(
+                            22.dp.toPx(),
+                            34.dp.toPx()
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.16f)
+                        )
                     }
                 )
+        ) {
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                contentPadding = PaddingValues(
+                    top = 20.dp,
+                    bottom = 40.dp
+                )
+            ) {
+
+                items(
+                    items = apps,
+                    key = {
+                        it.packageName
+                    }
+                ) { app ->
+
+                    AppIcon(
+                        app = app,
+                        backdrop = backdrop,
+                        onClick = {
+
+                            val launchIntent =
+                                context.packageManager
+                                    .getLaunchIntentForPackage(
+                                        app.packageName
+                                    )
+
+                            if (launchIntent != null) {
+                                context.startActivity(
+                                    launchIntent
+                                )
+                            }
+                        }
+                    )
+                }
             }
+
+            /*
+             * Close area
+             */
+            Text(
+                text = "↓",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 6.dp)
+                    .clickable {
+                        onClose()
+                    },
+                fontSize = 18.sp,
+                color = Color(0xFF5B6875)
+            )
         }
     }
 }
@@ -444,6 +437,7 @@ fun AppDrawer(
 @Composable
 fun AppIcon(
     app: InstalledApp,
+    backdrop: com.kyant.backdrop.Backdrop,
     onClick: () -> Unit
 ) {
 
@@ -460,19 +454,41 @@ fun AppIcon(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
+            .padding(
+                vertical = 12.dp,
+                horizontal = 4.dp
+            )
             .clickable {
                 onClick()
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
+        /*
+         * Each icon gets a small real liquid-glass
+         * surface instead of a normal alpha box.
+         */
         Box(
             modifier = Modifier
                 .size(66.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Color.White.copy(alpha = 0.40f)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = {
+                        RoundedRect(20.dp.toPx())
+                    },
+                    effects = {
+                        vibrancy()
+                        blur(3.dp.toPx())
+                        lens(
+                            10.dp.toPx(),
+                            18.dp.toPx()
+                        )
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(alpha = 0.14f)
+                        )
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -490,7 +506,7 @@ fun AppIcon(
 
         Text(
             text = app.name,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = Color(0xFF26313C),
             maxLines = 1
         )
@@ -512,13 +528,11 @@ fun loadInstalledApps(
         )
     }
 
-    val resolveInfos =
-        packageManager.queryIntentActivities(
+    return packageManager
+        .queryIntentActivities(
             intent,
             PackageManager.MATCH_ALL
         )
-
-    return resolveInfos
         .mapNotNull { info ->
 
             val packageName =

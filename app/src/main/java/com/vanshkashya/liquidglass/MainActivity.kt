@@ -7,27 +7,43 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.core.graphics.drawable.toBitmap
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -40,6 +56,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 data class InstalledApp(
     val name: String,
@@ -62,21 +79,42 @@ class MainActivity : ComponentActivity() {
 fun LiquidGlassLauncher() {
 
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     val backdrop = rememberLayerBackdrop()
+
+    var apps by remember {
+        mutableStateOf(loadInstalledApps(context))
+    }
+
+    var query by remember {
+        mutableStateOf("")
+    }
 
     var drawerOpen by remember {
         mutableStateOf(false)
+    }
+
+    /*
+     * Drawer progress:
+     *
+     * 0f = home
+     * 1f = completely open
+     */
+    val drawerProgress = remember {
+        Animatable(0f)
+    }
+
+    var dragDistance by remember {
+        mutableFloatStateOf(0f)
     }
 
     var time by remember {
         mutableStateOf(currentTime())
     }
 
-    var apps by remember {
-        mutableStateOf(loadInstalledApps(context))
-    }
-
     LaunchedEffect(Unit) {
+
         while (true) {
             time = currentTime()
             delay(1000)
@@ -105,189 +143,296 @@ fun LiquidGlassLauncher() {
         }
     }
 
+    LaunchedEffect(drawerOpen) {
+
+        drawerProgress.animateTo(
+            targetValue = if (drawerOpen) 1f else 0f,
+            animationSpec = spring(
+                dampingRatio = 0.82f,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+    }
+
+    val filteredApps =
+        remember(apps, query) {
+
+            if (query.isBlank()) {
+                apps
+            } else {
+                apps.filter {
+                    it.name.contains(
+                        query,
+                        ignoreCase = true
+                    )
+                }
+            }
+        }
+
+    /*
+     * Root gesture.
+     *
+     * Drawer follows the finger instead of
+     * appearing instantly.
+     */
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFE7F1FF),
+                        Color(0xFFEAF4FF),
                         Color(0xFFF8FBFF),
-                        Color(0xFFDCE7F5)
+                        Color(0xFFD9E6F4)
                     )
                 )
             )
+            .pointerInput(drawerOpen) {
+
+                detectVerticalDragGestures(
+
+                    onVerticalDrag = { change, amount ->
+
+                        change.consume()
+
+                        dragDistance += amount
+
+                        val height =
+                            size.height.toFloat()
+
+                        val progressDelta =
+                            amount / height
+
+                        val newProgress =
+                            (
+                                drawerProgress.value -
+                                    progressDelta
+                                )
+                                .coerceIn(0f, 1f)
+
+                        drawerProgress.snapTo(
+                            newProgress
+                        )
+                    },
+
+                    onDragEnd = {
+
+                        val shouldOpen =
+                            drawerProgress.value > 0.22f
+
+                        haptic.performHapticFeedback(
+                            HapticFeedbackType.TextHandleMove
+                        )
+
+                        drawerOpen = shouldOpen
+
+                        dragDistance = 0f
+                    },
+
+                    onDragCancel = {
+
+                        drawerOpen =
+                            drawerProgress.value > 0.5f
+
+                        dragDistance = 0f
+                    }
+                )
+            }
     ) {
 
         /*
-         * BACKGROUND / BACKDROP SOURCE
+         * =====================================================
+         * BACKGROUND
+         * =====================================================
          */
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
 
+            /*
+             * Large background light
+             */
             Box(
                 modifier = Modifier
                     .offset(
-                        x = (-80).dp,
-                        y = 150.dp
+                        x = (-100).dp,
+                        y = 110.dp
                     )
-                    .size(360.dp)
+                    .size(390.dp)
                     .clip(
-                        RoundedCornerShape(180.dp)
+                        RoundedCornerShape(195.dp)
                     )
                     .background(
-                        Color(0x5595CFFF)
+                        Color(0x5596CFFF)
                     )
             )
 
+            /*
+             * Secondary light
+             */
             Box(
                 modifier = Modifier
                     .offset(
-                        x = 270.dp,
-                        y = 650.dp
+                        x = 260.dp,
+                        y = 570.dp
                     )
-                    .size(360.dp)
+                    .size(420.dp)
                     .clip(
-                        RoundedCornerShape(180.dp)
+                        RoundedCornerShape(210.dp)
                     )
                     .background(
-                        Color(0x55B5A0FF)
+                        Color(0x55B7A7FF)
                     )
             )
-        }
 
-        if (drawerOpen) {
-
-            AppDrawer(
-                apps = apps,
-                backdrop = backdrop,
-                onClose = {
-                    drawerOpen = false
-                }
-            )
-
-        } else {
-
-            HomeScreen(
-                time = time,
-                backdrop = backdrop,
-                onOpenDrawer = {
-                    drawerOpen = true
-                }
+            /*
+             * Small highlight
+             */
+            Box(
+                modifier = Modifier
+                    .offset(
+                        x = 110.dp,
+                        y = 390.dp
+                    )
+                    .size(180.dp)
+                    .clip(
+                        RoundedCornerShape(90.dp)
+                    )
+                    .background(
+                        Color(0x3320C8FF)
+                    )
             )
         }
 
         /*
-         * SWIPE GESTURE
+         * =====================================================
+         * HOME SCREEN
+         * =====================================================
          */
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(drawerOpen) {
 
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, amount ->
+        HomeScreen(
+            time = time,
+            backdrop = backdrop,
+            drawerProgress = drawerProgress.value,
+            onOpenDrawer = {
 
-                            if (
-                                !drawerOpen &&
-                                amount < -20f
-                            ) {
-                                drawerOpen = true
-                            }
+                haptic.performHapticFeedback(
+                    HapticFeedbackType.TextHandleMove
+                )
 
-                            if (
-                                drawerOpen &&
-                                amount > 20f
-                            ) {
-                                drawerOpen = false
-                            }
-                        }
-                    )
-                }
+                drawerOpen = true
+            }
+        )
+
+        /*
+         * =====================================================
+         * DRAWER
+         * =====================================================
+         */
+
+        AppDrawer(
+            apps = filteredApps,
+            query = query,
+            onQueryChange = {
+                query = it
+            },
+            backdrop = backdrop,
+            progress = drawerProgress.value,
+            onClose = {
+
+                haptic.performHapticFeedback(
+                    HapticFeedbackType.TextHandleMove
+                )
+
+                drawerOpen = false
+                query = ""
+            }
         )
     }
 }
+
+/* ============================================================
+ * HOME
+ * ============================================================ */
 
 @Composable
 fun HomeScreen(
     time: String,
     backdrop: Backdrop,
+    drawerProgress: Float,
     onOpenDrawer: () -> Unit
 ) {
+
+    val scale =
+        1f - (drawerProgress * 0.045f)
+
+    val alpha =
+        1f - (drawerProgress * 0.55f)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 70.dp),
+            .graphicsLayer {
+
+                scaleX = scale
+                scaleY = scale
+
+                this.alpha = alpha
+            }
+            .padding(
+                top = 74.dp,
+                bottom = 28.dp
+            ),
         horizontalAlignment =
             Alignment.CenterHorizontally
     ) {
 
+        /*
+         * TIME
+         */
+
         Text(
             text = time,
-            fontSize = 64.sp,
-            color = Color(0xFF101820)
+            fontSize = 68.sp,
+            color = Color(0xFF101820),
+            letterSpacing = (-2).sp
         )
 
         Text(
-            text = SimpleDateFormat(
-                "EEEE, d MMMM",
-                Locale.getDefault()
-            ).format(Date()),
-            fontSize = 17.sp,
-            color = Color(0xFF536273)
+            text =
+                SimpleDateFormat(
+                    "EEEE, d MMMM",
+                    Locale.getDefault()
+                ).format(Date()),
+            fontSize = 16.sp,
+            color = Color(0xFF596979)
         )
 
         Spacer(
-            modifier = Modifier.height(50.dp)
+            modifier = Modifier.height(45.dp)
         )
 
         /*
-         * SEARCH
+         * SEARCH GLASS
          */
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .height(58.dp)
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = {
-                        RoundedCornerShape(29.dp)
-                    },
-                    effects = {
-                        vibrancy()
-                        blur(8f)
-                        lens(18f, 28f)
-                    }
-                )
-                .clickable {
-                    onOpenDrawer()
-                },
-            contentAlignment =
-                Alignment.CenterStart
-        ) {
 
-            Text(
-                text = "⌕   Search apps",
-                modifier = Modifier.padding(
-                    horizontal = 24.dp
-                ),
-                fontSize = 17.sp,
-                color = Color(0xFF526273)
-            )
-        }
+        GlassSearch(
+            backdrop = backdrop,
+            text = "Search apps",
+            onClick = onOpenDrawer
+        )
 
         Spacer(
             modifier = Modifier.weight(1f)
         )
 
         Text(
-            text = "↑  Swipe up for apps",
+            text = "↑  Swipe up",
             fontSize = 13.sp,
-            color = Color(0xFF667585)
+            color = Color(0xFF647384)
         )
 
         Spacer(
@@ -295,303 +440,366 @@ fun HomeScreen(
         )
 
         /*
-         * DOCK
+         * GLASS DOCK
          */
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .height(78.dp)
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = {
-                        RoundedCornerShape(39.dp)
-                    },
-                    effects = {
-                        vibrancy()
-                        blur(10f)
-                        lens(20f, 32f)
-                    }
-                )
-                .clickable {
-                    onOpenDrawer()
-                },
-            contentAlignment =
-                Alignment.Center
-        ) {
 
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement =
-                    Arrangement.SpaceEvenly,
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                GlassDockIcon("⌕")
-                GlassDockIcon("◉")
-                GlassDockIcon("◎")
-                GlassDockIcon("▦")
-            }
-        }
-
-        Spacer(
-            modifier = Modifier.height(28.dp)
+        GlassDock(
+            backdrop = backdrop,
+            onOpenDrawer = onOpenDrawer
         )
     }
 }
 
+/* ============================================================
+ * SEARCH
+ * ============================================================ */
+
 @Composable
-fun GlassDockIcon(
-    symbol: String
+fun GlassSearch(
+    backdrop: Backdrop,
+    text: String,
+    onClick: () -> Unit
 ) {
 
-    Text(
-        text = symbol,
-        fontSize = 25.sp,
-        color = Color(0xFF17232E)
-    )
+    PressableGlass(
+        modifier = Modifier
+            .fillMaxWidth(0.88f)
+            .height(58.dp),
+        onClick = onClick
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            Icon(
+                imageVector =
+                    Icons.Default.Search,
+                contentDescription = null,
+                tint = Color(0xFF526171)
+            )
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
+            )
+
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                color = Color(0xFF596979)
+            )
+        }
+    }
 }
+
+/* ============================================================
+ * DOCK
+ * ============================================================ */
+
+@Composable
+fun GlassDock(
+    backdrop: Backdrop,
+    onOpenDrawer: () -> Unit
+) {
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.88f)
+            .height(82.dp)
+            .drawBackdrop(
+                backdrop = backdrop,
+                shape = {
+                    RoundedCornerShape(41.dp)
+                },
+                effects = {
+
+                    vibrancy()
+
+                    blur(12f)
+
+                    lens(
+                        22f,
+                        36f
+                    )
+                }
+            )
+    ) {
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement =
+                Arrangement.SpaceEvenly,
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            DockButton(
+                icon = Icons.Default.Phone,
+                onClick = {}
+            )
+
+            DockButton(
+                icon = Icons.Default.Search,
+                onClick = onOpenDrawer
+            )
+
+            DockButton(
+                icon = Icons.Default.GridView,
+                onClick = onOpenDrawer
+            )
+        }
+    }
+}
+
+@Composable
+fun DockButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+
+    var pressed by remember {
+        mutableStateOf(false)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .scale(
+                if (pressed) 0.88f else 1f
+            )
+            .clip(
+                RoundedCornerShape(18.dp)
+            )
+            .background(
+                Color.White.copy(
+                    alpha =
+                        if (pressed) 0.55f
+                        else 0.28f
+                )
+            )
+            .pointerInput(Unit) {
+
+                androidx.compose.foundation.gestures.detectTapGestures(
+
+                    onPress = {
+
+                        pressed = true
+
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            pressed = false
+                        }
+
+                        onClick()
+                    }
+                )
+            },
+        contentAlignment =
+            Alignment.Center
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color(0xFF18232E)
+        )
+    }
+}
+
+/* ============================================================
+ * DRAWER
+ * ============================================================ */
 
 @Composable
 fun AppDrawer(
     apps: List<InstalledApp>,
+    query: String,
+    onQueryChange: (String) -> Unit,
     backdrop: Backdrop,
+    progress: Float,
     onClose: () -> Unit
 ) {
 
     val context = LocalContext.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 42.dp)
-    ) {
+    /*
+     * Drawer slides from bottom.
+     */
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp),
-            verticalAlignment =
-                Alignment.CenterVertically
+    val screenHeight =
+        with(
+            androidx.compose.ui.platform.LocalDensity.current
         ) {
-
-            Text(
-                text = "Apps",
-                fontSize = 34.sp,
-                color = Color(0xFF111A22)
-            )
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-            Text(
-                text = "${apps.size} apps",
-                fontSize = 14.sp,
-                color = Color(0xFF637181)
-            )
+            900.dp.toPx()
         }
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+    val translateY =
+        (1f - progress) * screenHeight
+
+    val drawerScale =
+        0.94f + (progress * 0.06f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+
+                translationY = translateY
+
+                scaleX = drawerScale
+                scaleY = drawerScale
+
+                alpha = progress
+
+                transformOrigin =
+                    androidx.compose.ui.graphics.TransformOrigin(
+                        0.5f,
+                        1f
+                    )
+            }
+    ) {
 
         /*
-         * DRAWER GLASS PANEL
+         * Dim layer.
          */
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp)
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = {
-                        RoundedCornerShape(32.dp)
-                    },
-                    effects = {
-                        vibrancy()
-                        blur(12f)
-                        lens(22f, 36f)
-                    }
+                .background(
+                    Color.Black.copy(
+                        alpha =
+                            0.04f * progress
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = 35.dp,
+                    start = 12.dp,
+                    end = 12.dp,
+                    bottom = 18.dp
                 )
         ) {
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding =
-                    PaddingValues(
-                        top = 25.dp,
-                        bottom = 45.dp
+            /*
+             * HEADER
+             */
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp
+                    ),
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+
+                Text(
+                    text = "Apps",
+                    fontSize = 34.sp,
+                    color = Color(0xFF111A22)
+                )
+
+                Spacer(
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    text = "${apps.size}",
+                    fontSize = 14.sp,
+                    color = Color(0xFF637181)
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.height(14.dp)
+            )
+
+            /*
+             * MAIN GLASS PANEL
+             */
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = {
+                            RoundedCornerShape(34.dp)
+                        },
+                        effects = {
+
+                            vibrancy()
+
+                            blur(14f)
+
+                            lens(
+                                24f,
+                                38f
+                            )
+                        }
                     )
             ) {
 
-                items(
-                    items = apps,
-                    key = {
-                        it.packageName
-                    }
-                ) { app ->
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
 
-                    AppIcon(
-                        app = app,
-                        backdrop = backdrop,
-                        onClick = {
+                    /*
+                     * SEARCH FIELD
+                     */
 
-                            val intent =
-                                context.packageManager
-                                    .getLaunchIntentForPackage(
-                                        app.packageName
-                                    )
-
-                            if (intent != null) {
-                                context.startActivity(intent)
-                            }
-                        }
+                    DrawerSearch(
+                        value = query,
+                        onValueChange =
+                            onQueryChange
                     )
-                }
-            }
 
-            Text(
-                text = "↓",
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 5.dp)
-                    .clickable {
-                        onClose()
-                    },
-                fontSize = 20.sp,
-                color = Color(0xFF526171)
-            )
-        }
-    }
-}
+                    /*
+                     * APP GRID
+                     */
 
-@Composable
-fun AppIcon(
-    app: InstalledApp,
-    backdrop: Backdrop,
-    onClick: () -> Unit
-) {
+                    LazyVerticalGrid(
+                        columns =
+                            GridCells.Fixed(4),
 
-    val bitmap = remember(
-        app.packageName
-    ) {
+                        modifier =
+                            Modifier.fillMaxSize(),
 
-        app.icon
-            .toBitmap(
-                width = 120,
-                height = 120
-            )
-            .asImageBitmap()
-    }
+                        contentPadding =
+                            PaddingValues(
+                                start = 12.dp,
+                                end = 12.dp,
+                                top = 8.dp,
+                                bottom = 60.dp
+                            ),
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                vertical = 12.dp,
-                horizontal = 4.dp
-            )
-            .clickable {
-                onClick()
-            },
-        horizontalAlignment =
-            Alignment.CenterHorizontally
-    ) {
+                        verticalArrangement =
+                            Arrangement.spacedBy(8.dp),
 
-        Box(
-            modifier = Modifier
-                .size(66.dp)
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = {
-                        RoundedCornerShape(20.dp)
-                    },
-                    effects = {
-                        vibrancy()
-                        blur(5f)
-                        lens(10f, 18f)
-                    }
-                ),
-            contentAlignment =
-                Alignment.Center
-        ) {
+                        horizontalArrangement =
+                            Arrangement.spacedBy(2.dp)
+                    ) {
 
-            Image(
-                bitmap = bitmap,
-                contentDescription = app.name,
-                modifier = Modifier.size(48.dp)
-            )
-        }
+                        items(
+                            items = apps,
+                            key = {
+                                it.packageName
+                            }
+                        ) { app ->
 
-        Spacer(
-            modifier = Modifier.height(6.dp)
-        )
+                            AppGridItem(
+                                app = app,
+                                onClick = {
 
-        Text(
-            text = app.name,
-            fontSize = 11.sp,
-            color = Color(0xFF26313C),
-            maxLines = 1
-        )
-    }
-}
-
-fun loadInstalledApps(
-    context: Context
-): List<InstalledApp> {
-
-    val pm = context.packageManager
-
-    val intent = Intent(
-        Intent.ACTION_MAIN,
-        null
-    ).apply {
-        addCategory(
-            Intent.CATEGORY_LAUNCHER
-        )
-    }
-
-    return pm
-        .queryIntentActivities(
-            intent,
-            PackageManager.MATCH_ALL
-        )
-        .mapNotNull { info ->
-
-            val packageName =
-                info.activityInfo.packageName
-
-            val name =
-                info.loadLabel(pm)
-                    ?.toString()
-                    ?: return@mapNotNull null
-
-            val icon =
-                info.loadIcon(pm)
-                    ?: return@mapNotNull null
-
-            InstalledApp(
-                name = name,
-                packageName = packageName,
-                icon = icon
-            )
-        }
-        .distinctBy {
-            it.packageName
-        }
-        .sortedBy {
-            it.name.lowercase(
-                Locale.getDefault()
-            )
-        }
-}
-
-fun currentTime(): String {
-
-    return SimpleDateFormat(
-        "HH:mm",
-        Locale.getDefault()
-    ).format(Date())
-}
+                                    val int

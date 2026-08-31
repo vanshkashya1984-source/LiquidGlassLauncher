@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -87,6 +85,8 @@ fun LiquidGlassLauncher() {
 
     DisposableEffect(Unit) {
 
+        val lifecycleOwner = context as ComponentActivity
+
         val observer =
             androidx.lifecycle.LifecycleEventObserver { _, event ->
 
@@ -98,17 +98,10 @@ fun LiquidGlassLauncher() {
                 }
             }
 
-        context
-            .let {
-                (it as ComponentActivity)
-                    .lifecycle
-                    .addObserver(observer)
-            }
+        lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
-            (context as ComponentActivity)
-                .lifecycle
-                .removeObserver(observer)
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -127,7 +120,7 @@ fun LiquidGlassLauncher() {
     ) {
 
         /*
-         * BACKDROP SOURCE
+         * BACKGROUND / BACKDROP SOURCE
          */
         Box(
             modifier = Modifier
@@ -188,7 +181,7 @@ fun LiquidGlassLauncher() {
         }
 
         /*
-         * GLOBAL SWIPE
+         * SWIPE GESTURE
          */
         Box(
             modifier = Modifier
@@ -253,7 +246,7 @@ fun HomeScreen(
         )
 
         /*
-         * LIQUID GLASS SEARCH
+         * SEARCH
          */
         Box(
             modifier = Modifier
@@ -261,14 +254,13 @@ fun HomeScreen(
                 .height(58.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = RoundedCornerShape(29.dp),
+                    shape = {
+                        RoundedCornerShape(29.dp)
+                    },
                     effects = {
                         vibrancy()
-                        blur(8.dp)
-                        lens(
-                            18.dp,
-                            28.dp
-                        )
+                        blur(8f)
+                        lens(18f, 28f)
                     }
                 )
                 .clickable {
@@ -303,7 +295,7 @@ fun HomeScreen(
         )
 
         /*
-         * LIQUID GLASS DOCK
+         * DOCK
          */
         Box(
             modifier = Modifier
@@ -311,14 +303,13 @@ fun HomeScreen(
                 .height(78.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = RoundedCornerShape(39.dp),
+                    shape = {
+                        RoundedCornerShape(39.dp)
+                    },
                     effects = {
                         vibrancy()
-                        blur(10.dp)
-                        lens(
-                            20.dp,
-                            32.dp
-                        )
+                        blur(10f)
+                        lens(20f, 32f)
                     }
                 )
                 .clickable {
@@ -406,7 +397,7 @@ fun AppDrawer(
         )
 
         /*
-         * GLASS DRAWER
+         * DRAWER GLASS PANEL
          */
         Box(
             modifier = Modifier
@@ -414,14 +405,13 @@ fun AppDrawer(
                 .padding(horizontal = 12.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = RoundedCornerShape(32.dp),
+                    shape = {
+                        RoundedCornerShape(32.dp)
+                    },
                     effects = {
                         vibrancy()
-                        blur(12.dp)
-                        lens(
-                            22.dp,
-                            36.dp
-                        )
+                        blur(12f)
+                        lens(22f, 36f)
                     }
                 )
         ) {
@@ -515,14 +505,13 @@ fun AppIcon(
                 .size(66.dp)
                 .drawBackdrop(
                     backdrop = backdrop,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = {
+                        RoundedCornerShape(20.dp)
+                    },
                     effects = {
                         vibrancy()
-                        blur(5.dp)
-                        lens(
-                            10.dp,
-                            18.dp
-                        )
+                        blur(5f)
+                        lens(10f, 18f)
                     }
                 ),
             contentAlignment =
